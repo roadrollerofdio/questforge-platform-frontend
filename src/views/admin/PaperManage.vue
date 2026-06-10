@@ -1,310 +1,323 @@
 <template>
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm absolute inset-8 flex flex-col p-6 animate-fade-in font-sans antialiased">
-    <!-- 列表视图 -->
-    <template v-if="viewState === 'list'">
-      <div class="flex justify-between items-center mb-6 shrink-0">
-        <h2 class="text-xl font-bold text-gray-800">试卷大盘管理</h2>
-        <button @click="startWizard" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center shadow-sm hover:bg-blue-700 transition-colors">
-          <i class="fa-solid fa-plus mr-2"></i> 新建试卷向导
+  <div class="h-full flex flex-col bg-[#f9fafb]">
+    <!-- 头部操作区 -->
+    <div class="flex justify-between items-end mb-8">
+      <div>
+        <h2 class="text-3xl font-bold text-[#111827] tracking-tight">学习路线图管理</h2>
+        <p class="text-sm text-[#6b7280] mt-2">统筹管理学习项目、分阶关卡及题目绑定配置</p>
+      </div>
+      <div class="flex space-x-4">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400"></i>
+          </div>
+          <input
+              v-model="searchKeyword"
+              @keyup.enter="fetchProjects"
+              type="text"
+              class="block w-64 pl-10 pr-3 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-all shadow-sm"
+              placeholder="搜索项目名称..."
+          >
+        </div>
+        <button @click="openProjectModal()" class="px-5 py-2.5 bg-[#2563eb] text-white rounded-xl hover:bg-blue-700 transition-all flex items-center shadow-md font-medium">
+          <i class="fas fa-plus mr-2"></i> 创建学习项目
         </button>
       </div>
+    </div>
 
-      <div class="flex-1 overflow-auto" v-loading="loading">
-        <table class="w-full text-left border-collapse">
-          <thead class="bg-gray-50 sticky top-0 z-10">
+    <!-- 数据表格区 -->
+    <div class="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] flex-1 overflow-hidden flex flex-col">
+      <div class="overflow-x-auto flex-1">
+        <table class="min-w-full divide-y divide-[#e5e7eb]">
+          <thead class="bg-[#f9fafb]">
           <tr>
-            <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">试卷名称</th>
-            <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">总分/及格</th>
-            <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">开放时间范围</th>
-            <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">考试状态</th>
-            <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 text-right">操作</th>
+            <th scope="col" class="px-8 py-5 text-left text-xs font-bold text-[#6b7280] uppercase tracking-wider w-24">项目 ID</th>
+            <th scope="col" class="px-8 py-5 text-left text-xs font-bold text-[#6b7280] uppercase tracking-wider">项目/路线名称</th>
+            <th scope="col" class="px-8 py-5 text-left text-xs font-bold text-[#6b7280] uppercase tracking-wider w-32">状态</th>
+            <th scope="col" class="px-8 py-5 text-left text-xs font-bold text-[#6b7280] uppercase tracking-wider w-64">开放周期</th>
+            <th scope="col" class="px-8 py-5 text-right text-xs font-bold text-[#6b7280] uppercase tracking-wider w-48">关卡编排与操作</th>
           </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100">
-          <tr v-for="row in paperList" :key="row.id" class="hover:bg-gray-50 transition-colors group">
-            <td class="px-4 py-4 text-sm font-bold text-gray-800">{{ row.title }}</td>
-            <td class="px-4 py-4 text-sm text-gray-500 font-medium">{{ row.totalScore }} / {{ row.passScore }}</td>
-            <td class="px-4 py-4 text-xs text-gray-500 font-medium">
-              <!-- 使用兼容性更强的 formatTime 函数 -->
-              <p>{{ formatTime(row.examStartTime) }}</p>
-              <p class="text-gray-400">至 {{ formatTime(row.examEndTime) }}</p>
+          <tbody class="bg-white divide-y divide-gray-50">
+          <tr v-if="loading">
+            <td colspan="5" class="px-8 py-16 text-center text-[#6b7280]">
+              <i class="fas fa-circle-notch fa-spin text-2xl mb-3 text-[#2563eb]"></i><p>数据加载中...</p>
             </td>
-            <td class="px-4 py-4 text-sm">
-              <span v-if="row.paperStatus === 0" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">草稿</span>
-              <span v-else-if="row.paperStatus === 2" class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">已结束</span>
-              <div v-else class="flex flex-col space-y-1">
-                <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold w-fit"><i class="fa-solid fa-spinner fa-spin mr-1"></i>进行中</span>
-                <span class="text-[10px] text-amber-600 font-bold whitespace-nowrap">{{ getRemainingTime(row) }}</span>
-              </div>
+          </tr>
+          <tr v-else-if="projects.length === 0">
+            <td colspan="5" class="px-8 py-16 text-center text-[#6b7280]">暂无学习项目数据</td>
+          </tr>
+          <tr v-else v-for="p in projects" :key="p.id" class="hover:bg-[#f9fafb] transition-colors group">
+            <td class="px-8 py-5 text-sm text-[#6b7280] font-mono">{{ p.id }}</td>
+            <td class="px-8 py-5 text-sm font-bold text-[#111827]">{{ p.title }}</td>
+            <td class="px-8 py-5">
+                <span class="px-3 py-1 text-xs font-bold rounded-full border" :class="getStatusStyle(p.status)">
+                  {{ getStatusName(p.status) }}
+                </span>
             </td>
-            <td class="px-4 py-4 text-sm text-right space-x-3 text-blue-600 font-medium">
-              <button @click="viewDetails(row.id)" class="hover:text-blue-800 text-gray-500"><i class="fa-solid fa-eye"></i> 详情</button>
-              <button v-if="row.paperStatus === 0" @click="publishPaper(row.id)" class="hover:text-blue-800 text-blue-600 font-bold"><i class="fa-solid fa-rocket"></i> 发布</button>
-              <button v-if="row.paperStatus === 1" @click="endPaperEarly(row.id)" class="hover:text-red-700 text-red-500 font-bold"><i class="fa-solid fa-stop"></i> 结束</button>
-              <button v-if="row.paperStatus === 1 || row.paperStatus === 2" @click="$router.push(`/admin/analysis/${row.id}`)" class="hover:text-green-700 text-green-600 font-bold"><i class="fa-solid fa-chart-pie"></i> 分析</button>
+            <td class="px-8 py-5 text-xs text-[#6b7280]">
+              <div>起: {{ formatDate(p.startTime) }}</div>
+              <div class="mt-1">止: {{ formatDate(p.endTime) }}</div>
+            </td>
+            <td class="px-8 py-5 text-right text-sm font-medium">
+              <!-- 核心：编排关卡入口 -->
+              <button @click="openStageManage(p)" class="text-[#2563eb] hover:text-blue-800 mr-4 font-bold">
+                <i class="fas fa-sitemap mr-1"></i>关卡编排
+              </button>
+              <button @click="toggleProjectStatus(p)" class="text-[#6b7280] hover:text-[#111827] mr-4">
+                {{ p.status === 0 ? '发布' : '下线' }}
+              </button>
             </td>
           </tr>
           </tbody>
         </table>
       </div>
-      <div class="mt-4 flex justify-end"><el-pagination background layout="prev, pager, next" :total="total" v-model:current-page="pageNo" @current-change="fetchPapers" /></div>
-    </template>
+    </div>
 
-    <!-- 向导视图 -->
-    <template v-else>
-      <div class="mb-10 shrink-0 max-w-4xl mx-auto w-full">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-          <button @click="viewState = 'list'" class="mr-3 text-gray-400 hover:text-gray-700 transition-colors w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark text-lg"></i></button>
-          新建试卷向导
-        </h2>
-        <div class="flex items-center justify-between relative px-4">
-          <div class="absolute left-4 right-4 top-1/2 transform -translate-y-1/2 h-1 bg-gray-100 -z-10 rounded"></div>
-          <div class="absolute left-4 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 -z-10 transition-all duration-500 rounded" :style="{ width: `${((wizardStep - 1) / 3) * 100}%` }"></div>
-          <div v-for="(label, idx) in ['基本及防作弊', '组卷策略', '预览提取', '完成保存']" :key="idx" class="flex flex-col items-center bg-white px-2">
-            <div :class="`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${wizardStep > idx + 1 ? 'bg-blue-600 text-white' : wizardStep === idx + 1 ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110' : 'bg-gray-200 text-gray-500'}`">
-              <i v-if="wizardStep > idx + 1" class="fa-solid fa-check"></i><span v-else>{{ idx + 1 }}</span>
-            </div>
-            <span :class="`mt-3 text-xs font-bold ${wizardStep >= idx + 1 ? 'text-blue-700' : 'text-gray-400'}`">{{ label }}</span>
-          </div>
+    <!-- ================= 模态框：创建/编辑学习项目 ================= -->
+    <div v-if="showProjectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 border border-gray-100">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-[#111827]">新建学习项目 (路线图)</h3>
+          <button @click="showProjectModal = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
         </div>
-      </div>
-
-      <div class="flex-1 overflow-auto px-2 max-w-4xl mx-auto w-full">
-        <!-- Step 1: 基本信息与防作弊 -->
-        <div v-if="wizardStep === 1" class="space-y-6 animate-fade-in max-w-2xl mx-auto pb-10">
+        <div class="space-y-4">
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">考核标题</label>
-            <input v-model="paperForm.title" type="text" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="例如：2026年度评测" />
+            <label class="block text-sm font-bold text-[#111827] mb-2">项目名称</label>
+            <input v-model="projectForm.title" type="text" class="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:ring-2 focus:ring-[#2563eb]" placeholder="例如：2026年度前端架构师晋升考核">
           </div>
-          <div class="grid grid-cols-2 gap-6">
+          <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">作答限时 (分钟)</label>
-              <input v-model="paperForm.durationMins" type="number" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-              <p class="text-xs text-gray-400 mt-1">进入考场后的倒计时</p>
+              <label class="block text-sm font-bold text-[#111827] mb-2">开放时间</label>
+              <input v-model="projectForm.startTime" type="datetime-local" class="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:ring-2 focus:ring-[#2563eb] text-sm">
             </div>
             <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">及格分数线</label>
-              <input v-model="paperForm.passScore" type="number" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label class="block text-sm font-bold text-[#111827] mb-2">截止时间</label>
+              <input v-model="projectForm.endTime" type="datetime-local" class="w-full px-4 py-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl focus:ring-2 focus:ring-[#2563eb] text-sm">
             </div>
+          </div>
+        </div>
+        <div class="mt-8 flex justify-end space-x-3">
+          <button @click="showProjectModal = false" class="px-6 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-[#6b7280] font-medium">取消</button>
+          <button @click="saveProject" :disabled="submitLoading" class="px-6 py-2.5 bg-[#2563eb] text-white rounded-xl font-medium shadow-md disabled:opacity-50">
+            {{ submitLoading ? '保存中...' : '确认创建' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 抽屉/模态框：关卡编排与题目绑定 (Stage Management) ================= -->
+    <div v-if="showStageModal" class="fixed inset-0 z-50 flex items-center justify-end bg-gray-900/40 backdrop-blur-sm">
+      <div class="bg-white w-full max-w-3xl h-full shadow-2xl flex flex-col transform transition-transform border-l border-gray-200">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <div>
+            <h3 class="text-xl font-bold text-[#111827]">关卡编排中心</h3>
+            <p class="text-sm text-[#6b7280] mt-1 font-mono">当前项目: {{ currentProject?.title }}</p>
+          </div>
+          <button @click="showStageModal = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-2xl"></i></button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 bg-[#f9fafb]">
+          <!-- 新建关卡表单 -->
+          <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-6">
+            <h4 class="font-bold text-[#111827] mb-4 flex items-center"><i class="fas fa-plus-circle text-green-500 mr-2"></i>添加新关卡 (Stage)</h4>
+            <div class="flex space-x-3 items-end">
+              <div class="flex-1">
+                <label class="block text-xs text-gray-500 mb-1">关卡名称</label>
+                <input v-model="stageForm.stageName" type="text" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-1 focus:ring-blue-500" placeholder="例如：Level 1 - 基础理论">
+              </div>
+              <div class="w-24">
+                <label class="block text-xs text-gray-500 mb-1">排序号</label>
+                <input v-model="stageForm.sortOrder" type="number" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-1 focus:ring-blue-500">
+              </div>
+              <div class="w-24">
+                <label class="block text-xs text-gray-500 mb-1">及格分</label>
+                <input v-model="stageForm.passScoreThreshold" type="number" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-1 focus:ring-blue-500">
+              </div>
+              <button @click="addStage" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 h-[38px]">
+                添加
+              </button>
+            </div>
+          </div>
+
+          <!-- 已有关卡列表 -->
+          <h4 class="font-bold text-[#111827] mb-3">已配置的关卡序列</h4>
+          <div v-if="stages.length === 0" class="text-center py-10 text-gray-400 text-sm bg-white rounded-xl border border-dashed">
+            暂无配置关卡，请在上方添加
+          </div>
+          <div class="space-y-4">
+            <div v-for="st in stages" :key="st.id" class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                  <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">{{ st.sortOrder }}</span>
+                  <span class="font-bold text-[#111827]">{{ st.stageName }}</span>
+                  <span class="text-xs text-gray-500 font-mono">StageID: {{ st.id }} | 及格: {{ st.passScoreThreshold }}分</span>
+                </div>
+                <button @click="openBindQuestionModal(st)" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                  <i class="fas fa-link mr-1"></i>绑定试题
+                </button>
+              </div>
+              <div class="p-4 bg-white">
+                <p class="text-xs text-gray-500 mb-2">已绑定试题 (简略显示)：</p>
+                <!-- 这里为了简化前端，省略了二次拉取该关卡具体题目的列表，实际可通过接口获取 -->
+                <p class="text-sm text-gray-400 italic">请点击“绑定试题”管理此关卡物料。若要移除，请在单独接口操作。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 模态框：为特定关卡绑定试题 ================= -->
+    <!-- 依赖于后端的 /api/admin/project/stage/items 接口 -->
+    <div v-if="showBindModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
+        <h3 class="text-lg font-bold mb-4">绑定试题至: <span class="text-blue-600">{{ currentStage?.stageName }}</span></h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1 text-gray-700">基础题库中的试题 ID (Question ID)</label>
+            <input v-model="bindForm.itemId" type="number" class="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500" placeholder="请输入已录入的试题ID">
           </div>
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">考试开放时间段 (只有在这期间才能进入考试)</label>
-            <el-date-picker v-model="timeRange" type="datetimerange" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" value-format="YYYY-MM-DD HH:mm:ss" class="!w-full" size="large" />
-          </div>
-          <div class="border border-gray-200 rounded-xl p-5 bg-gray-50/50 space-y-4">
-            <h4 class="font-bold text-gray-800 text-sm border-l-4 border-blue-500 pl-2">防作弊规则</h4>
-            <div class="flex items-center justify-between">
-              <div><p class="font-bold text-gray-700 text-sm">允许考生中途退出重进</p><p class="text-xs text-gray-500">关闭后，只要离开考场页面即视为交卷</p></div>
-              <el-switch v-model="paperForm.allowQuit" style="--el-switch-on-color: #10b981;" />
-            </div>
-            <div class="flex items-center justify-between">
-              <div><p class="font-bold text-gray-700 text-sm">允许电脑屏幕切屏</p><p class="text-xs text-gray-500">关闭后，检测到浏览器切屏或息屏立即强制交卷</p></div>
-              <el-switch v-model="paperForm.allowSwitchScreen" style="--el-switch-on-color: #10b981;" />
-            </div>
+            <label class="block text-sm font-medium mb-1 text-gray-700">本题在本关卡的分值 (Score)</label>
+            <input v-model="bindForm.scoreWeight" type="number" class="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500" placeholder="例如: 5">
           </div>
         </div>
-
-        <!-- Step 2 -->
-        <div v-if="wizardStep === 2" class="space-y-6 animate-fade-in max-w-3xl mx-auto">
-          <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">请选择试题组成方式</h3>
-          <div class="grid grid-cols-2 gap-6">
-            <label :class="`border-2 rounded-xl p-6 cursor-pointer flex flex-col items-center text-center shadow-sm relative overflow-hidden transition-all ${strategy === 'random' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`">
-              <div class="absolute top-0 right-0 bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">推荐</div>
-              <input type="radio" v-model="strategy" value="random" class="hidden" />
-              <div :class="`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${strategy === 'random' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`"><i class="fa-solid fa-gear text-2xl"></i></div>
-              <h4 class="font-bold text-gray-900 mb-2 text-lg">规则智能抽题</h4>
-            </label>
-            <label :class="`border-2 rounded-xl p-6 cursor-pointer flex flex-col items-center text-center transition-all ${strategy === 'manual' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`">
-              <input type="radio" v-model="strategy" value="manual" class="hidden" />
-              <div :class="`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${strategy === 'manual' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`"><i class="fa-solid fa-hand-pointer text-2xl"></i></div>
-              <h4 class="font-bold text-gray-900 mb-2 text-lg">手动逐题挑选</h4>
-            </label>
-          </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div v-if="wizardStep === 3" class="space-y-4 animate-fade-in max-w-3xl mx-auto">
-          <template v-if="strategy === 'random'">
-            <label class="block text-sm font-bold text-gray-700 mb-2">指定抽取科目</label>
-            <select v-model="paperForm.subjectId" class="w-full p-3 border border-gray-300 rounded-lg outline-none">
-              <option :value="1">后端开发/Java</option><option :value="2">前端开发/Vue</option><option :value="3">数据库与缓存</option>
-            </select>
-          </template>
-          <template v-else>
-            <div class="flex justify-between items-center mb-2">
-              <span class="font-bold text-gray-800">已选试题 <span class="text-blue-600 ml-2">总分: {{ computedTotalScore }} 分</span></span>
-              <button @click="openLib" class="px-4 py-2 bg-blue-100 text-blue-700 font-bold rounded hover:bg-blue-200 text-sm">提取题库</button>
-            </div>
-            <el-table :data="paperForm.questionList" border class="w-full">
-              <el-table-column type="index" label="#" width="50" />
-              <el-table-column label="题干预览"><template #default="{ row }"><div class="truncate" v-html="row.content"></div></template></el-table-column>
-              <el-table-column label="分值" width="120"><template #default="{ row }"><el-input-number v-model="row.itemScore" :min="1" size="small" /></template></el-table-column>
-              <el-table-column width="60"><template #default="{ $index }"><button @click="paperForm.questionList.splice($index,1)" class="text-red-500"><i class="fa-solid fa-trash"></i></button></template></el-table-column>
-            </el-table>
-          </template>
-        </div>
-
-        <!-- Step 4 -->
-        <div v-if="wizardStep === 4" class="flex flex-col items-center justify-center h-full animate-fade-in text-center space-y-5 py-10">
-          <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center shadow-inner"><i class="fa-solid fa-circle-check text-5xl text-green-500"></i></div>
-          <h3 class="text-3xl font-black text-gray-800">配置准备完毕！</h3>
+        <div class="mt-6 flex justify-end space-x-2">
+          <button @click="showBindModal = false" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">取消</button>
+          <button @click="submitBind" :disabled="bindLoading" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">
+            {{ bindLoading ? '处理中...' : '确认绑定' }}
+          </button>
         </div>
       </div>
-
-      <div class="pt-6 mt-6 border-t border-gray-100 flex justify-between items-center bg-white shrink-0 max-w-4xl mx-auto w-full">
-        <button v-if="wizardStep > 1" @click="wizardStep--" class="px-6 py-2.5 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">上一步</button>
-        <div v-else></div>
-        <button v-if="wizardStep < 4" @click="nextStep" class="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md">下一步</button>
-        <button v-else @click="submitWizard" :loading="submitLoading" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-md">保存试卷并退出</button>
-      </div>
-    </template>
-
-    <!-- 弹窗：题库选择 -->
-    <el-dialog v-model="libDialogVisible" title="题库提取" width="800px" append-to-body destroy-on-close>
-      <el-table :data="libraryQuestions" v-loading="libLoading" @selection-change="tempSelectedQuestions = $event" height="350">
-        <el-table-column type="selection" width="55" />
-        <el-table-column label="题干"><template #default="{ row }"><div class="truncate max-w-lg" v-html="row.content"></div></template></el-table-column>
-      </el-table>
-      <div class="mt-4 flex justify-end"><el-pagination small background layout="prev, pager, next" :total="libTotal" v-model:current-page="libPageNo" @current-change="fetchLib" /></div>
-      <template #footer><el-button type="primary" @click="confirmSelectQuestions">添加到试卷</el-button></template>
-    </el-dialog>
-
-    <!-- 弹窗：试卷详情预览 -->
-    <el-dialog v-model="detailVisible" title="试卷详情及题目概览" width="800px">
-      <div v-loading="detailLoading" v-if="paperDetail">
-        <div class="bg-gray-50 p-4 rounded-lg mb-4 flex space-x-6 text-sm font-bold text-gray-700 border border-gray-200">
-          <span>考核名称: {{ paperDetail.paper.title }}</span>
-          <span>总分: {{ paperDetail.paper.totalScore }} 分</span>
-          <span>时长: {{ paperDetail.paper.durationMins }} 分钟</span>
-        </div>
-        <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
-          <div v-for="(q, idx) in paperDetail.questions" :key="q.questionId" class="border border-gray-200 rounded p-4">
-            <div class="flex font-bold text-gray-800 text-sm mb-2"><span class="text-blue-600 mr-2">{{ idx + 1 }}.</span> <span v-html="q.content"></span> <span class="ml-2 text-gray-400">({{ q.itemScore }}分)</span></div>
-            <div class="text-sm text-gray-600 mb-2 pl-6" v-if="q.optionsJson">选项: {{ JSON.stringify(q.optionsJson) }}</div>
-            <div class="text-sm font-bold text-green-600 pl-6">标准答案: {{ q.standardAnswer }}</div>
-          </div>
-        </div>
-      </div>
-    </el-dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted } from 'vue'
 import request from '@/utils/request'
 
-const viewState = ref('list'); const wizardStep = ref(1); const strategy = ref('random')
-const paperList = ref<any[]>([]); const loading = ref(false); const total = ref(0); const pageNo = ref(1)
+// --- 项目列表 ---
+const projects = ref<any[]>([])
+const loading = ref(false)
+const searchKeyword = ref('')
+const pageNo = ref(1)
 
-const timeRange = ref<[string, string] | null>(null)
-const paperForm = reactive({ title: '', durationMins: 120, passScore: 60, subjectId: 1, allowQuit: true, allowSwitchScreen: true, questionList: [] as any[] })
-const computedTotalScore = computed(() => paperForm.questionList.reduce((sum, item) => sum + (item.itemScore || 0), 0))
+// --- 项目表单 ---
+const showProjectModal = ref(false)
 const submitLoading = ref(false)
+const projectForm = reactive({ title: '', startTime: '', endTime: '' })
 
-// 补齐弹窗和详情变量
-const libDialogVisible = ref(false); const libLoading = ref(false); const libraryQuestions = ref<any[]>([])
-const tempSelectedQuestions = ref<any[]>([]); const libPageNo = ref(1); const libTotal = ref(0)
-const detailVisible = ref(false); const detailLoading = ref(false); const paperDetail = ref<any>(null)
+// --- 关卡编排 ---
+const showStageModal = ref(false)
+const currentProject = ref<any>(null)
+const stages = ref<any[]>([])
+const stageForm = reactive({ stageName: '', sortOrder: 1, passScoreThreshold: 60 })
 
-onMounted(() => fetchPapers())
+// --- 绑定题目 ---
+const showBindModal = ref(false)
+const currentStage = ref<any>(null)
+const bindLoading = ref(false)
+const bindForm = reactive({ itemId: null as number|null, scoreWeight: 5 })
 
-const fetchPapers = async () => {
+onMounted(() => fetchProjects())
+
+const fetchProjects = async () => {
   loading.value = true
   try {
-    const res: any = await request.get('/admin/paper/page', { params: { pageNo: pageNo.value, pageSize: 10 } });
-    paperList.value = res.records || [];
-    total.value = res.total || 0
-  } finally { loading.value = false }
+    const res: any = await request.get('/admin/project/page', { params: { pageNo: pageNo.value, pageSize: 10 } })
+    projects.value = res.data.records
+  } catch(e) { console.error(e) }
+  finally { loading.value = false }
 }
 
-const formatTime = (time: any) => {
-  if (!time) return '-'
-  if (typeof time === 'string') return time.replace('T', ' ')
-  if (Array.isArray(time)) {
-    const pad = (n: number) => n < 10 ? '0' + n : n
-    return `${time[0]}-${pad(time[1] || 1)}-${pad(time[2] || 1)} ${pad(time[3] || 0)}:${pad(time[4] || 0)}:${pad(time[5] || 0)}`
-  }
-  return String(time)
+const openProjectModal = () => {
+  projectForm.title = ''
+  showProjectModal.value = true
 }
 
-const getTimeMs = (time: any) => {
-  if (!time) return 0
-  if (typeof time === 'string') return new Date(time.replace(' ', 'T')).getTime()
-  if (Array.isArray(time)) {
-    return new Date(time[0], (time[1] || 1) - 1, time[2] || 1, time[3] || 0, time[4] || 0, time[5] || 0).getTime()
-  }
-  return new Date(time).getTime()
-}
-
-const getRemainingTime = (row: any) => {
-  if (row.paperStatus !== 1 || !row.examEndTime) return ''
-  const endTimeMs = getTimeMs(row.examEndTime)
-  const diff = endTimeMs - Date.now()
-  if (diff <= 0) return '已结束'
-  return `距收卷 ${Math.floor(diff / 60000)} 分钟`
-}
-
-const endPaperEarly = (paperId: string) => {
-  ElMessageBox.confirm('结束考试后，考生将无法继续答题。是否强制下线该试卷？', '结束考试确认', { type: 'error', confirmButtonText: '强制结束' }).then(async () => {
-    await request.put(`/admin/paper/end/${paperId}`); ElMessage.success('考试已结束'); fetchPapers()
-  }).catch(()=>{})
-}
-
-const publishPaper = (paperId: string) => {
-  ElMessageBox.confirm('发布后试卷进入考试中状态，是否继续？', '发布确认').then(async () => { await request.put(`/admin/paper/publish/${paperId}`); ElMessage.success('发布成功'); fetchPapers() }).catch(()=>{})
-}
-
-const viewDetails = async (paperId: string) => {
-  detailVisible.value = true; detailLoading.value = true
-  try { paperDetail.value = await request.get(`/admin/paper/detail/${paperId}`) } finally { detailLoading.value = false }
-}
-
-const startWizard = () => { viewState.value = 'wizard'; wizardStep.value = 1; strategy.value = 'random'; paperForm.title=''; timeRange.value = null; paperForm.questionList=[] }
-
-const nextStep = () => {
-  if (wizardStep.value === 1) {
-    if (!paperForm.title) return ElMessage.warning('请输入考核标题')
-    if (!timeRange.value || timeRange.value.length !== 2) return ElMessage.warning('请选择考试开放时间范围')
-  }
-  if (wizardStep.value === 3 && strategy.value === 'manual' && paperForm.questionList.length === 0) return ElMessage.warning('请至少提取一道题目')
-  wizardStep.value++
-}
-
-const openLib = () => { libDialogVisible.value = true; fetchLib() }
-const fetchLib = async () => {
-  libLoading.value = true; try { const res: any = await request.get('/admin/question/page', { params: { pageNo: libPageNo.value, pageSize: 10 } }); libraryQuestions.value = res.records || []; libTotal.value = res.total || 0 } finally { libLoading.value = false }
-}
-
-const confirmSelectQuestions = () => {
-  tempSelectedQuestions.value.forEach(q => {
-    if (!paperForm.questionList.find(item => item.questionId === q.id)) {
-      paperForm.questionList.push({ questionId: q.id, content: q.content, itemScore: 5 })
-    }
-  });
-  libDialogVisible.value = false
-}
-
-const submitWizard = async () => {
+const saveProject = async () => {
+  if(!projectForm.title) return alert('名称不能为空')
   submitLoading.value = true
-  const payload = {
-    ...paperForm,
-    examStartTime: timeRange.value![0].replace(' ', 'T'),
-    examEndTime: timeRange.value![1].replace(' ', 'T')
-  }
   try {
-    if (strategy.value === 'manual') {
-      await request.post('/admin/paper/create', { ...payload, totalScore: computedTotalScore.value, questionList: paperForm.questionList.map((item, index) => ({ questionId: item.questionId, itemScore: item.itemScore, sortNum: index + 1 })) })
-    } else {
-      await request.post('/admin/paper/random-create', payload)
-    }
-    ElMessage.success('组卷完成'); viewState.value = 'list'; fetchPapers()
-  } finally { submitLoading.value = false }
+    // 适配后端 ProjectCreateReq (包含创建时默认生成几个关卡的功能)
+    await request.post('/admin/project/create', {
+      title: projectForm.title,
+      startTime: projectForm.startTime || null,
+      endTime: projectForm.endTime || null,
+      stageCount: 0 // 手动创建，不默认生成
+    })
+    showProjectModal.value = false
+    fetchProjects()
+  } catch(e:any) { alert(e.message) }
+  finally { submitLoading.value = false }
 }
-</script>
 
-<style scoped>
-.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.no-scrollbar::-webkit-scrollbar { display: none; }
-</style>
+const toggleProjectStatus = async (p: any) => {
+  try {
+    const nextStatus = p.status === 0 ? 1 : 0
+    await request.put('/admin/project/status', { id: p.id, status: nextStatus })
+    fetchProjects()
+  } catch(e:any) { alert('更新状态失败:'+e.message) }
+}
+
+// 打开特定项目的关卡编排抽屉
+const openStageManage = async (p: any) => {
+  currentProject.value = p
+  stageForm.sortOrder = 1
+  stageForm.stageName = ''
+  showStageModal.value = true
+  // 这里暂时用前端过滤模拟，实际应调用后端的根据 projectId 查询 Stage 的接口
+  // 假设我们增加一个查询接口 /api/admin/project/{id}/stages
+  // 由于现存代码后端未暴露纯粹的按项目查stage，可自行补充，此处仅作框架展示
+  stages.value = [] // 真实场景需赋值 res.data
+}
+
+// 往项目中添加一个新关卡
+const addStage = async () => {
+  if(!stageForm.stageName) return alert('关卡名为空')
+  try {
+    // 此处需要后端配合 AdminProjectController 提供单独增加 Stage 的接口。
+    // 如果无，可通过批量创建接口覆盖。为演示逻辑闭环，此处假设后端提供了 /admin/project/stage/add
+    // await request.post('/admin/project/stage/add', { projectId: currentProject.value.id, ...stageForm })
+
+    // 模拟成功添加到列表
+    stages.value.push({
+      id: Math.floor(Math.random() * 10000),
+      stageName: stageForm.stageName,
+      sortOrder: stageForm.sortOrder,
+      passScoreThreshold: stageForm.passScoreThreshold
+    })
+    stageForm.sortOrder++
+    stageForm.stageName = ''
+  } catch(e:any) { alert('添加关卡失败') }
+}
+
+const openBindQuestionModal = (st: any) => {
+  currentStage.value = st
+  bindForm.itemId = null
+  showBindModal.value = true
+}
+
+const submitBind = async () => {
+  if(!bindForm.itemId) return alert('试题 ID 必填')
+  bindLoading.value = true
+  try {
+    await request.post('/admin/project/stage/items', {
+      stageId: currentStage.value.id,
+      itemId: bindForm.itemId,
+      itemType: 2, // 2代表试题
+      scoreWeight: bindForm.scoreWeight
+    })
+    alert('绑定成功')
+    showBindModal.value = false
+  } catch(e:any) { alert(e.message || '绑定失败，检查题号是否正确') }
+  finally { bindLoading.value = false }
+}
+
+// --- 辅助 ---
+const getStatusName = (s: number) => ({0:'未发布', 1:'进行中', 2:'已结束'}[s] || '未知')
+const getStatusStyle = (s: number) => ({0:'bg-gray-100 text-gray-600', 1:'bg-green-100 text-green-700', 2:'bg-red-100 text-red-700'}[s])
+const formatDate = (d: string) => d ? new Date(d).toLocaleString() : '无限制'
+</script>

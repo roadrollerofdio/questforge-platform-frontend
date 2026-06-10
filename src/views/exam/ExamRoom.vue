@@ -120,9 +120,9 @@
 
     <!-- AI 伴学面板组件 -->
     <AiChat
-        :is-open="showAiTutor"
-        :current-question="currentQuestion"
-        :current-answer="answers[currentQuestion?.id]"
+        :isOpen="showAiTutor"
+        :currentQuestion="currentQuestion"
+        :currentAnswer="answers[currentQuestion?.id]"
         @close="toggleAiTutor"
     />
   </div>
