@@ -1,154 +1,161 @@
 <template>
-  <div class="min-h-screen bg-[#0a0f1c] text-gray-200 overflow-hidden relative font-sans selection:bg-blue-500/30">
-    <!-- 背景雷达/光效点缀 -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-      <div class="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-      <div class="absolute top-1/4 -left-32 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-1/4 -right-32 w-64 h-64 bg-green-600/10 rounded-full blur-3xl"></div>
+  <div class="min-h-screen bg-[#F7F9F4] flex flex-col font-sans">
+    <!-- 加载中 -->
+    <div v-if="loading" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F7F9F4]">
+      <div class="text-6xl animate-bounce mb-4">🦉</div>
+      <p class="text-[#58CC02] font-extrabold tracking-wide">正在进入关卡...</p>
     </div>
 
-    <div v-if="loading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0a0f1c]">
-      <div class="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-      <p class="text-blue-400 font-mono tracking-widest text-sm">INITIALIZING STAGE DATA...</p>
-    </div>
-
-    <!-- 主体内容区 -->
-    <div v-else class="relative z-10 h-screen flex flex-col">
-      <!-- 顶栏 HUD -->
-      <header class="flex justify-between items-center p-6 border-b border-white/5 backdrop-blur-sm bg-[#0f172a]/80">
-        <div class="flex items-center space-x-4">
-          <button @click="handleQuit" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors border border-white/10">
-            <i class="fas fa-chevron-left text-gray-400"></i>
+    <template v-else>
+      <!-- ===== 顶栏: 退出 + 进度条 + 倒计时 ===== -->
+      <header class="sticky top-0 z-40 bg-[#F7F9F4] px-4 pt-4 pb-2">
+        <div class="max-w-2xl mx-auto flex items-center gap-4">
+          <button @click="handleQuit" class="text-gray-400 hover:text-gray-600 text-xl">
+            <i class="fas fa-xmark"></i>
           </button>
-          <div>
-            <div class="text-xs text-blue-400 font-mono mb-1">STAGE #{{ stageId }}</div>
-            <h1 class="text-xl font-bold tracking-wide">{{ stageData?.stageName || '未知挑战' }}</h1>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-8">
-          <div class="flex flex-col items-end">
-            <div class="text-xs text-gray-500 font-mono mb-1">TIME REMAINING</div>
-            <div class="text-2xl font-mono font-bold" :class="isTimeWarning ? 'text-red-500 animate-pulse' : 'text-green-400'">
-              {{ formattedTime }}
+          <!-- 答题进度条 -->
+          <div class="flex-1 h-4 bg-[#E5E5E5] rounded-full overflow-hidden">
+            <div class="h-full bg-[#58CC02] rounded-full transition-all duration-500 relative"
+                 :style="{ width: progressPercent + '%' }">
+              <div class="absolute inset-x-2 top-0.5 h-1 bg-white/40 rounded-full"></div>
             </div>
           </div>
-          <button @click="submitExam(false)" class="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-tl-xl rounded-br-xl hover:from-blue-500 hover:to-blue-700 transition-all font-bold tracking-widest border border-blue-400/30 shadow-[0_0_15px_rgba(37,99,235,0.4)]">
-            交 卷
-          </button>
+          <!-- 倒计时 -->
+          <div class="flex items-center gap-1.5 font-extrabold"
+               :class="isTimeWarning ? 'text-[#FF4B4B] animate-pulse' : 'text-[#FF9600]'">
+            <i class="fas fa-clock"></i>
+            <span class="font-mono">{{ formattedTime }}</span>
+          </div>
         </div>
       </header>
 
-      <main class="flex-1 flex overflow-hidden">
-        <!-- 左侧雷达地图 (答题卡) -->
-        <aside class="w-20 md:w-64 border-r border-white/5 bg-black/20 p-4 overflow-y-auto flex flex-col items-center md:items-start">
-          <div class="text-xs text-gray-500 font-mono mb-6 hidden md:block">MISSION MAP</div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-            <div v-for="(q, index) in questions" :key="q.id"
-                 @click="jumpToQuestion(index)"
-                 class="aspect-square flex items-center justify-center rounded cursor-pointer font-mono text-sm transition-all border"
-                 :class="[
-                    currentQuestionIndex === index ? 'bg-blue-600/20 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' :
-                    (answers[q.id] ? 'bg-green-900/30 border-green-700/50 text-green-500' : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30')
-                  ]">
-              {{ index + 1 }}
+      <!-- ===== 题目区 ===== -->
+      <main class="flex-1 w-full max-w-2xl mx-auto px-4 py-6 pb-40">
+        <transition name="slide-fade" mode="out-in">
+          <div :key="currentQuestionIndex">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="px-3 py-1 rounded-xl text-xs font-extrabold"
+                    :class="typeBadgeClass(currentQuestion?.type)">
+                {{ getQuestionTypeLabel(currentQuestion?.type) }}
+              </span>
+              <span class="text-sm font-bold text-gray-400">第 {{ currentQuestionIndex + 1 }} / {{ questions.length }} 题</span>
+            </div>
+
+            <h2 class="text-xl font-extrabold text-gray-700 leading-relaxed mb-6">{{ currentQuestion?.content }}</h2>
+
+            <div class="space-y-3">
+              <button v-for="(opt, idx) in currentQuestion?.options" :key="idx"
+                      @click="toggleOption(opt.value)"
+                      class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-b-4 text-left transition-all bg-white"
+                      :class="isOptionSelected(opt.value)
+                        ? 'border-[#1CB0F6] bg-[#DDF4FF] text-[#1899D6]'
+                        : 'border-[#E5E5E5] text-gray-600 hover:bg-[#F7F9F4] active:border-b-2 active:translate-y-0.5'">
+                <span class="w-9 h-9 shrink-0 rounded-xl border-2 flex items-center justify-center font-extrabold"
+                      :class="isOptionSelected(opt.value) ? 'border-[#1CB0F6] text-[#1CB0F6] bg-white' : 'border-[#E5E5E5] text-gray-400'">
+                  {{ String.fromCharCode(65 + idx) }}
+                </span>
+                <span class="font-bold text-base">{{ opt.text }}</span>
+              </button>
             </div>
           </div>
-        </aside>
+        </transition>
 
-        <!-- 中央答题区 -->
-        <section class="flex-1 flex flex-col relative overflow-hidden">
-          <div class="flex-1 overflow-y-auto p-8 md:p-16">
-            <transition name="fade" mode="out-in">
-              <div :key="currentQuestionIndex" class="max-w-4xl mx-auto">
-                <div class="flex items-start mb-8">
-                  <span class="text-5xl font-black text-white/10 mr-4 font-mono leading-none">{{ String(currentQuestionIndex + 1).padStart(2, '0') }}</span>
-                  <div class="pt-2">
-                    <span class="px-2 py-1 text-xs rounded bg-blue-900/50 text-blue-400 border border-blue-700/50 mr-3 align-middle font-mono">
-                      {{ getQuestionTypeLabel(currentQuestion?.type) }}
-                    </span>
-                    <h2 class="text-2xl leading-relaxed inline align-middle font-medium">{{ currentQuestion?.content }}</h2>
+        <!-- 题目导航点 -->
+        <div class="flex flex-wrap gap-2 justify-center mt-8">
+          <button v-for="(q, index) in questions" :key="q.id"
+                  @click="currentQuestionIndex = index"
+                  class="w-8 h-8 rounded-xl text-xs font-extrabold border-2 border-b-4 transition-all"
+                  :class="currentQuestionIndex === index
+                    ? 'bg-[#58CC02] border-[#46A302] text-white'
+                    : (answers[q.id] ? 'bg-[#E7F8D9] border-[#B8E29A] text-[#58CC02]' : 'bg-white border-[#E5E5E5] text-gray-400')">
+            {{ index + 1 }}
+          </button>
+        </div>
+      </main>
+
+      <!-- ===== 底部操作栏 ===== -->
+      <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-[#E5E5E5]">
+        <div class="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+          <button @click="prev" :disabled="currentQuestionIndex === 0"
+                  class="px-6 py-3 rounded-2xl font-extrabold border-2 border-b-4 border-[#E5E5E5] text-gray-500 bg-white disabled:opacity-40 hover:bg-[#F7F9F4] active:border-b-2 active:translate-y-0.5 transition-all">
+            上一题
+          </button>
+
+          <button v-if="currentQuestionIndex < questions.length - 1" @click="next"
+                  class="flex-1 max-w-[220px] px-6 py-3 rounded-2xl font-extrabold text-white bg-[#58CC02] shadow-[0_4px_0_#46A302] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all">
+            下一题
+          </button>
+          <button v-else @click="submitExam(false)"
+                  class="flex-1 max-w-[220px] px-6 py-3 rounded-2xl font-extrabold text-white bg-[#FF9600] shadow-[0_4px_0_#CC7800] hover:brightness-105 active:translate-y-1 active:shadow-none transition-all">
+            提交关卡
+          </button>
+        </div>
+      </footer>
+
+      <!-- ===== AI 教师悬浮窗 ===== -->
+      <button @click="openAiDialog"
+              class="fixed right-5 bottom-24 z-40 w-16 h-16 rounded-full bg-[#CE82FF] shadow-[0_5px_0_#A767CC] flex items-center justify-center text-3xl hover:brightness-105 active:translate-y-1 active:shadow-none transition-all animate-wiggle">
+        🤖
+      </button>
+
+      <!-- AI 对话框 -->
+      <transition name="pop">
+        <div v-if="showAiDialog" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" @click.self="showAiDialog = false">
+          <div class="w-full max-w-lg bg-white rounded-3xl p-6 max-h-[75vh] flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-[#F3E5FF] flex items-center justify-center text-2xl">🤖</div>
+                <div>
+                  <div class="font-extrabold text-gray-700">AI 教师</div>
+                  <div class="text-xs font-bold" :class="aiMode === 'hint' ? 'text-[#FF9600]' : 'text-[#58CC02]'">
+                    {{ aiMode === 'hint' ? '你还没作答, 给你一点提示 💡' : '你已作答, 来看看解析 📖' }}
                   </div>
                 </div>
-
-                <div class="space-y-4 ml-16">
-                  <label v-for="(opt, idx) in currentQuestion?.options" :key="idx"
-                         class="group flex items-center p-5 rounded-xl border transition-all cursor-pointer relative overflow-hidden"
-                         :class="isOptionSelected(opt.value) ? 'bg-blue-900/30 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'">
-                    <!-- 选中特效背景 -->
-                    <div v-if="isOptionSelected(opt.value)" class="absolute left-0 top-0 w-1 h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
-
-                    <div class="w-8 h-8 rounded border flex items-center justify-center mr-4 font-mono transition-colors"
-                         :class="isOptionSelected(opt.value) ? 'border-blue-400 bg-blue-500/20 text-blue-300' : 'border-gray-600 text-gray-400 group-hover:border-gray-400'">
-                      {{ String.fromCharCode(65 + idx) }}
-                    </div>
-                    <input :type="currentQuestion?.type === 2 ? 'checkbox' : 'radio'"
-                           :value="opt.value"
-                           v-model="currentOptionModel"
-                           @change="handleAnswerSelect"
-                           class="hidden">
-                    <span class="text-lg text-gray-300 group-hover:text-white transition-colors">{{ opt.text }}</span>
-                  </label>
-                </div>
               </div>
-            </transition>
+              <button @click="showAiDialog = false" class="text-gray-400 hover:text-gray-600 text-xl">
+                <i class="fas fa-xmark"></i>
+              </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto bg-[#F7F9F4] rounded-2xl p-4 min-h-[160px]">
+              <p class="text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">{{ aiContent || ' ' }}</p>
+              <div v-if="aiStreaming" class="flex gap-1 mt-2">
+                <span class="w-2 h-2 bg-[#CE82FF] rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-[#CE82FF] rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-[#CE82FF] rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+              </div>
+            </div>
           </div>
-
-          <!-- 底部控制栏 -->
-          <div class="p-6 border-t border-white/5 bg-black/40 flex justify-between items-center backdrop-blur-md">
-            <button @click="prev" :disabled="currentQuestionIndex === 0"
-                    class="px-6 py-2 rounded border border-white/10 text-gray-400 hover:text-white hover:border-white/30 disabled:opacity-30 transition-all flex items-center font-mono text-sm">
-              <i class="fas fa-arrow-left mr-2"></i> PREV
-            </button>
-
-            <!-- 呼出 AI 导师 -->
-            <button @click="toggleAiTutor" class="group relative px-6 py-2 rounded-full border border-blue-500/50 bg-blue-900/20 text-blue-400 hover:bg-blue-600/20 transition-all flex items-center overflow-hidden">
-              <div class="absolute inset-0 bg-blue-500/10 blur-md group-hover:bg-blue-500/30 transition-all"></div>
-              <i class="fas fa-robot mr-2 relative z-10"></i>
-              <span class="font-mono text-sm tracking-widest relative z-10">AI TUTOR</span>
-            </button>
-
-            <button @click="next" :disabled="currentQuestionIndex === questions.length - 1"
-                    class="px-6 py-2 rounded border border-white/10 text-gray-400 hover:text-white hover:border-white/30 disabled:opacity-30 transition-all flex items-center font-mono text-sm">
-              NEXT <i class="fas fa-arrow-right ml-2"></i>
-            </button>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <!-- AI 伴学面板组件 -->
-    <AiChat
-        :isOpen="showAiTutor"
-        :currentQuestion="currentQuestion"
-        :currentAnswer="answers[currentQuestion?.id]"
-        @close="toggleAiTutor"
-    />
+        </div>
+      </transition>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useUserStore } from '@/store/user'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
-import AiChat from '@/components/AiChat.vue'
+import { streamSse } from '@/utils/sse'
 
 const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
-const stageId = route.params.id
+const stageId = route.params.id as string
 
-// 状态
 const loading = ref(true)
 const stageData = ref<any>(null)
 const questions = ref<any[]>([])
 const currentQuestionIndex = ref(0)
-const answers = ref<Record<string, string | string[]>>({}) // 暂存用户答案
-const showAiTutor = ref(false)
+const answers = ref<Record<string, string>>({})
 
-// 倒计时逻辑
+// AI 悬浮窗
+const showAiDialog = ref(false)
+const aiContent = ref('')
+const aiStreaming = ref(false)
+const aiMode = ref<'hint' | 'analysis'>('hint')
+
+// 倒计时
 const timeLeftSeconds = ref(0)
 const timer = ref<any>(null)
 
@@ -157,58 +164,32 @@ const formattedTime = computed(() => {
   const s = timeLeftSeconds.value % 60
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
-const isTimeWarning = computed(() => timeLeftSeconds.value > 0 && timeLeftSeconds.value <= 300) // 最后5分钟
-
+const isTimeWarning = computed(() => timeLeftSeconds.value > 0 && timeLeftSeconds.value <= 300)
 const currentQuestion = computed(() => questions.value[currentQuestionIndex.value])
-
-// v-model 绑定的中间变量，处理单选(string)和多选(array)的差异
-const currentOptionModel = computed({
-  get() {
-    if (!currentQuestion.value) return null;
-    const qId = currentQuestion.value.id;
-    if (currentQuestion.value.type === 2) {
-      // 多选返回数组
-      return answers.value[qId] ? (answers.value[qId] as string).split(',') : [];
-    }
-    return answers.value[qId] || '';
-  },
-  set(val: any) {
-    if (!currentQuestion.value) return;
-    const qId = currentQuestion.value.id;
-    if (currentQuestion.value.type === 2) {
-      answers.value[qId] = (val as string[]).sort().join(',');
-    } else {
-      answers.value[qId] = val;
-    }
-  }
+const progressPercent = computed(() => {
+  if (questions.value.length === 0) return 0
+  const answered = questions.value.filter(q => answers.value[q.id]).length
+  return Math.round(answered / questions.value.length * 100)
 })
 
-onMounted(async () => {
-  await initStage()
-})
-
-onUnmounted(() => {
-  if (timer.value) clearInterval(timer.value)
-})
+onMounted(async () => { await initStage() })
+onUnmounted(() => { if (timer.value) clearInterval(timer.value) })
 
 const initStage = async () => {
   try {
     loading.value = true
-    // 调用我们在 UserStageServiceImpl 中实现的进入关卡逻辑
     const res: any = await request.post(`/user/stage/${stageId}/enter`)
-    stageData.value = res.data
-
-    // 解析题目，假设后端 Redis 中存的是 { questions: [...] }
-    if (res.data.questions && res.data.questions.length > 0) {
-      questions.value = res.data.questions
-      // 初始化倒计时，假设关卡有 duration 字段（分钟）
-      timeLeftSeconds.value = (stageData.value.duration || 60) * 60
+    stageData.value = res
+    if (res.questions && res.questions.length > 0) {
+      questions.value = res.questions
+      timeLeftSeconds.value = (res.duration || 60) * 60
       startTimer()
     } else {
-      alert('未拉取到题目信息')
+      ElMessage.warning('该关卡还没有配置题目')
     }
   } catch (error) {
     console.error('进入关卡失败', error)
+    setTimeout(() => router.replace('/user/home'), 1200)
   } finally {
     loading.value = false
   }
@@ -220,85 +201,139 @@ const startTimer = () => {
       timeLeftSeconds.value--
     } else {
       clearInterval(timer.value)
-      submitExam(true) // 倒计时结束强制交卷
+      submitExam(true)
     }
   }, 1000)
 }
 
-const isOptionSelected = (val: string) => {
-  if (currentQuestion.value?.type === 2) {
-    return (currentOptionModel.value as string[]).includes(val)
+// 选项点击: 单选/判断直接选中, 多选切换
+const toggleOption = (val: string) => {
+  const q = currentQuestion.value
+  if (!q) return
+  if (q.type === 2) {
+    const selected = answers.value[q.id] ? answers.value[q.id].split(',') : []
+    const idx = selected.indexOf(val)
+    if (idx >= 0) selected.splice(idx, 1)
+    else selected.push(val)
+    answers.value[q.id] = selected.sort().join(',')
+  } else {
+    answers.value[q.id] = val
   }
-  return currentOptionModel.value === val
+  syncHeartbeat(q.id)
 }
 
-const handleAnswerSelect = async () => {
-  if (!currentQuestion.value) return
-  const qId = currentQuestion.value.id
-  const ansStr = answers.value[qId] as string
+const isOptionSelected = (val: string) => {
+  const q = currentQuestion.value
+  if (!q) return false
+  const ans = answers.value[q.id] || ''
+  return q.type === 2 ? ans.split(',').includes(val) : ans === val
+}
 
-  // 发送心跳包到 Redis，我们在后端写了 saveHeartbeat 接口
+const syncHeartbeat = async (questionId: string) => {
   try {
     await request.post('/user/stage/heartbeat', {
       stageId: stageId,
-      questionId: qId,
-      userAnswer: ansStr
+      questionId: questionId,
+      userAnswer: answers.value[questionId] || ''
     })
   } catch (e) {
     console.warn('心跳同步失败', e)
   }
 }
 
-const jumpToQuestion = (index: number) => { currentQuestionIndex.value = index }
 const prev = () => { if (currentQuestionIndex.value > 0) currentQuestionIndex.value-- }
 const next = () => { if (currentQuestionIndex.value < questions.value.length - 1) currentQuestionIndex.value++ }
 
-const toggleAiTutor = () => { showAiTutor.value = !showAiTutor.value }
+// ===== AI 教师: 未作答给提示 / 已作答给解析 =====
+const openAiDialog = () => {
+  const q = currentQuestion.value
+  if (!q) return
+  const userAnswer = answers.value[q.id] || ''
+  aiMode.value = userAnswer ? 'analysis' : 'hint'
+  aiContent.value = ''
+  aiStreaming.value = true
+  showAiDialog.value = true
 
-const submitExam = async (force: boolean = false) => {
+  const params = new URLSearchParams({
+    questionId: q.id,
+    userAnswer: userAnswer,
+    mode: aiMode.value
+  })
+  streamSse(`/api/v1/ai-engine/tutor/stage-chat?${params.toString()}`, {
+    method: 'GET',
+    onMessage: (chunk) => { aiContent.value += chunk },
+    onDone: () => { aiStreaming.value = false },
+    onError: () => {
+      aiStreaming.value = false
+      if (!aiContent.value) aiContent.value = 'AI 教师暂时离开了, 请稍后再试~'
+    }
+  })
+}
+
+const submitExam = async (force = false) => {
   if (!force) {
     const unAnswered = questions.value.filter(q => !answers.value[q.id]).length
-    if (unAnswered > 0) {
-      if (!confirm(`还有 ${unAnswered} 道题未作答，确定要交卷吗？`)) return
-    } else {
-      if (!confirm('确定要提交当前考卷吗？')) return
+    const tip = unAnswered > 0 ? `还有 ${unAnswered} 道题未作答, 确定要提交吗?` : '确定提交本关卡吗?'
+    try {
+      await ElMessageBox.confirm(tip, '提交关卡', { confirmButtonText: '提交', cancelButtonText: '再想想' })
+    } catch (e) {
+      return
     }
   }
 
   try {
     loading.value = true
-    // 调用异步交卷接口
     const res: any = await request.post('/user/stage/submit', {
       stageId: stageId,
       forceSubmit: force ? 1 : 0
     })
-
-    // 返回的是 progressId，跳转到结算报告页
-    router.replace(`/exam/report/${res.data}`)
+    router.replace(`/exam/result/${res.progressId}`)
   } catch (error: any) {
-    alert(error.message || '交卷失败')
+    ElMessage.error(error.message || '提交失败')
     loading.value = false
   }
 }
 
-const handleQuit = () => {
-  if (confirm('正在挑战中，退出可能导致成绩作废，是否确认？')) {
-    router.push('/paper/list')
-  }
+const handleQuit = async () => {
+  try {
+    await ElMessageBox.confirm('正在挑战中, 现在退出进度会保留, 确认退出吗?', '退出关卡', {
+      confirmButtonText: '退出', cancelButtonText: '继续挑战'
+    })
+    router.push('/user/home')
+  } catch (e) { /* 取消 */ }
 }
 
 const getQuestionTypeLabel = (type: number) => {
-  switch(type) {
-    case 1: return 'SINGLE'
-    case 2: return 'MULTIPLE'
-    case 3: return 'JUDGE'
-    default: return 'UNKNOWN'
+  switch (type) {
+    case 1: return '单选题'
+    case 2: return '多选题'
+    case 3: return '判断题'
+    default: return '题目'
+  }
+}
+
+const typeBadgeClass = (type: number) => {
+  switch (type) {
+    case 1: return 'bg-[#DDF4FF] text-[#1CB0F6]'
+    case 2: return 'bg-[#F3E5FF] text-[#CE82FF]'
+    case 3: return 'bg-[#FFF0D9] text-[#FF9600]'
+    default: return 'bg-gray-100 text-gray-400'
   }
 }
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
-.fade-enter-from { opacity: 0; transform: translateY(10px); }
-.fade-leave-to { opacity: 0; transform: translateY(-10px); }
+.slide-fade-enter-active, .slide-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.slide-fade-enter-from { opacity: 0; transform: translateX(20px); }
+.slide-fade-leave-to { opacity: 0; transform: translateX(-20px); }
+
+.pop-enter-active, .pop-leave-active { transition: opacity 0.2s ease; }
+.pop-enter-from, .pop-leave-to { opacity: 0; }
+
+@keyframes wiggle {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  92% { transform: rotate(-8deg); }
+  96% { transform: rotate(8deg); }
+}
+.animate-wiggle { animation: wiggle 4s ease-in-out infinite; }
 </style>

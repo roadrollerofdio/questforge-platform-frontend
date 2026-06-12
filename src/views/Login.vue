@@ -261,19 +261,19 @@ const handleLogin = async () => {
       password: loginForm.password
     })
 
-    const { token, role, username, realName, userId } = res.data
+    const { token, role, realName, userId } = res
 
     if (loginRole.value === 'ADMIN' && role !== 'ROLE_ADMIN') {
       throw new Error('权限不足：当前账号不具备管理核心访问权限')
     }
 
     userStore.setToken(token)
-    userStore.setUserInfo({ username, role, realName, userId })
+    userStore.setUserInfo({ username: loginForm.username, role, realName, userId })
 
     if (role === 'ROLE_ADMIN') {
-      router.push('/admin')
+      router.push('/admin/dashboard')
     } else {
-      router.push('/paper/list')
+      router.push('/user/home')
     }
   } catch (error: any) {
     console.error('登录失败:', error)

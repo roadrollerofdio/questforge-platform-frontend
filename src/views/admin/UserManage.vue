@@ -74,7 +74,7 @@ const fetchUsers = async () => {
   loading.value = true
   try {
     const res: any = await request.get('/admin/user/page', { params: { pageNo: pageNo.value, pageSize: 10, keyword: keyword.value } })
-    userList.value = res.records || []; total.value = res.total || 0
+    userList.value = res?.records || []; total.value = res?.total || 0
   } finally { loading.value = false }
 }
 

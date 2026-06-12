@@ -235,8 +235,8 @@ const fetchQuestions = async () => {
         keyword: searchKeyword.value
       }
     })
-    questions.value = res.data.records
-    total.value = res.data.total
+    questions.value = res?.records || []
+    total.value = res?.total || 0
   } catch (error) {
     console.error('获取列表失败', error)
   } finally {

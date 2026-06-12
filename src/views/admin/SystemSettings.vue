@@ -1,6 +1,12 @@
 <template>
   <div class="max-w-4xl mx-auto space-y-6 animate-fade-in font-sans antialiased">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">系统全局配置</h2>
+    <div class="flex justify-between items-end mb-2">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">系统全局配置</h2>
+        <p class="text-sm text-gray-500 mt-1">配置保存至数据库，AI 引擎将实时读取最新参数</p>
+      </div>
+      <el-tag v-if="loaded" type="success" size="small">已同步</el-tag>
+    </div>
 
     <div class="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
       <div class="flex items-center mb-6 pb-4 border-b border-gray-100">
@@ -8,7 +14,7 @@
         <div><h3 class="text-lg font-bold text-gray-800">AI 大模型中枢配置</h3><p class="text-sm text-gray-500">配置用于智能组卷与错题私教的底层 AI 模型接口参数</p></div>
       </div>
 
-      <el-form label-position="top">
+      <el-form label-position="top" v-loading="pageLoading">
         <div class="grid grid-cols-2 gap-6 mb-2">
           <el-form-item label="默认推理模型引擎">
             <el-select v-model="settings.aiModel" class="w-full" size="large">
@@ -17,11 +23,11 @@
               <el-option label="Gemini 1.5 Pro" value="gemini-1.5-pro" />
             </el-select>
           </el-form-item>
-          <el-form-item label="API Base URL (留空走默认路由)">
+          <el-form-item label="API Base URL">
             <el-input v-model="settings.aiApiUrl" placeholder="如：https://api.deepseek.com/v1" size="large" />
           </el-form-item>
         </div>
-        <el-form-item label="API Secret Key (授权凭证)">
+        <el-form-item label="API Secret Key (留空则不修改已有密钥)">
           <el-input v-model="settings.aiApiKey" type="password" show-password placeholder="请输入以 sk- 开头的密钥凭证" size="large" />
         </el-form-item>
       </el-form>
@@ -39,7 +45,7 @@
           <el-input-number v-model="settings.mqDelay" :min="0" :max="60" :step="5" size="large" /> <span class="ml-2 text-sm text-gray-500 font-bold">秒</span>
         </div>
         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
-          <div><h4 class="font-bold text-gray-800">试卷 Redis 预热与强缓存</h4><p class="text-xs text-gray-500 mt-1">开启后发布试卷将硬性推送到 Redis 集群，大幅提升万人并发拉卷能力，但增加内存开销</p></div>
+          <div><h4 class="font-bold text-gray-800">试卷 Redis 预热与强缓存</h4><p class="text-xs text-gray-500 mt-1">开启后发布试卷将推送到 Redis 集群，大幅提升并发拉卷能力</p></div>
           <el-switch v-model="settings.enableRedisCache" style="--el-switch-on-color: #10b981;" />
         </div>
       </div>
@@ -54,10 +60,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import request from '@/utils/request'
 
 const loading = ref(false)
+const pageLoading = ref(false)
+const loaded = ref(false)
 
-// 模拟前端本地配置状态 (演示用，生产环境应存储在数据库 sys_config 表中)
 const settings = ref({
   aiModel: 'deepseek-chat',
   aiApiUrl: 'https://api.deepseek.com/v1',
@@ -66,20 +74,36 @@ const settings = ref({
   enableRedisCache: true
 })
 
-onMounted(() => {
-  const localConfig = localStorage.getItem('EXAM_SYS_CONFIG')
-  if (localConfig) {
-    settings.value = JSON.parse(localConfig)
+onMounted(async () => {
+  pageLoading.value = true
+  try {
+    const res: any = await request.get('/admin/settings')
+    if (res) {
+      settings.value = { ...settings.value, ...res }
+      loaded.value = true
+    }
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('加载系统配置失败，请确认后端已启动且 sys_config 表已创建')
+  } finally {
+    pageLoading.value = false
   }
 })
 
-const saveSettings = () => {
+const saveSettings = async () => {
   loading.value = true
-  setTimeout(() => {
-    localStorage.setItem('EXAM_SYS_CONFIG', JSON.stringify(settings.value))
+  try {
+    const payload = { ...settings.value }
+    if (payload.aiApiKey === '********') payload.aiApiKey = ''
+    await request.put('/admin/settings', payload)
     ElMessage.success('系统全局配置已成功保存')
+    const res: any = await request.get('/admin/settings')
+    if (res) settings.value = { ...settings.value, ...res }
+  } catch (e) {
+    console.error(e)
+  } finally {
     loading.value = false
-  }, 600)
+  }
 }
 </script>
 

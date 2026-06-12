@@ -42,7 +42,7 @@ service.interceptors.response.use(
             }
             return Promise.reject(new Error(res.message || 'Error'))
         } else {
-            return res.data // 直接返回业务 data
+            return res.data
         }
     },
     error => {

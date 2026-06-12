@@ -6,7 +6,7 @@
         <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
           <i class="fa-solid fa-award text-white text-lg"></i>
         </div>
-        <span class="text-xl font-bold tracking-tight text-slate-800">ExamPro</span>
+        <span class="text-xl font-bold tracking-tight text-slate-800">QuestForge</span>
       </div>
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
         <router-link to="/admin/dashboard" :class="getLinkClass('/admin/dashboard')">
@@ -20,6 +20,12 @@
         </router-link>
         <router-link to="/admin/users" :class="getLinkClass('/admin/users')">
           <i :class="getIconClass('/admin/users', 'fa-users')"></i><span>用户管理</span>
+        </router-link>
+        <router-link to="/admin/daily-task" :class="getLinkClass('/admin/daily-task')">
+          <i :class="getIconClass('/admin/daily-task', 'fa-list-check')"></i><span>每日任务</span>
+        </router-link>
+        <router-link to="/admin/shop" :class="getLinkClass('/admin/shop')">
+          <i :class="getIconClass('/admin/shop', 'fa-store')"></i><span>宝石小店</span>
         </router-link>
         <router-link to="/admin/settings" :class="getLinkClass('/admin/settings')">
           <i :class="getIconClass('/admin/settings', 'fa-gear')"></i><span>系统设置</span>
