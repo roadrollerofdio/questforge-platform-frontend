@@ -38,14 +38,16 @@ export function streamSse(url: string, options: SseOptions): AbortController {
             if (done) break
             buffer += decoder.decode(value, { stream: true })
 
-            // SSE 事件以空行分隔
+            // SSE 事件以空行分隔; 同一事件内的多行 data: 按规范用 \n 重新拼接, 避免段落换行丢失
             const events = buffer.split('\n\n')
             buffer = events.pop() || ''
             for (const event of events) {
-                for (const line of event.split('\n')) {
-                    if (line.startsWith('data:')) {
-                        options.onMessage(line.slice(5))
-                    }
+                const dataLines = event.split('\n')
+                    .map(l => l.replace(/\r$/, ''))
+                    .filter(l => l.startsWith('data:'))
+                    .map(l => l.replace(/^data: ?/, ''))
+                if (dataLines.length > 0) {
+                    options.onMessage(dataLines.join('\n'))
                 }
             }
         }
