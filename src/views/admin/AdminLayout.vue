@@ -3,9 +3,7 @@
     <!-- 原型级沉浸式侧边栏 -->
     <div class="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
       <div class="p-6 pb-4 border-b border-gray-100 flex items-center space-x-3">
-        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <i class="fa-solid fa-award text-white text-lg"></i>
-        </div>
+        <img src="@/assets/logo.png" alt="QuestForge" class="w-8 h-8 rounded-lg object-cover" />
         <span class="text-xl font-bold tracking-tight text-slate-800">QuestForge</span>
       </div>
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">

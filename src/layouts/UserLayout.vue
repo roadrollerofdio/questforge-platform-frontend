@@ -4,9 +4,7 @@
     <header class="sticky top-0 z-40 bg-white border-b-2 border-[#E5E5E5]">
       <div class="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div class="w-10 h-10 rounded-2xl bg-[#58CC02] flex items-center justify-center shadow-[0_3px_0_#46A302]">
-            <i class="fas fa-feather-pointed text-white text-lg"></i>
-          </div>
+          <img src="@/assets/logo.png" alt="QuestForge" class="w-10 h-10 rounded-2xl object-cover shadow-sm" />
           <span class="text-xl font-extrabold text-[#58CC02] tracking-wide hidden sm:inline">QuestForge</span>
         </div>
 

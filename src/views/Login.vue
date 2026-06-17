@@ -1,8 +1,7 @@
 <template>
-  <!-- 确保最外层容器是 100vh 且使用 grid 居中，这比 flex 在处理 3D 变换时更稳定 -->
   <div class="min-h-screen w-full bg-[#0f172a] relative overflow-hidden grid place-items-center perspective-1000">
 
-    <!-- 背景光效 (动态响应角色切换) -->
+    <!-- 背景光效 -->
     <div class="absolute inset-0 transition-colors duration-700 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))]"
          :class="isRegisterMode ? 'from-green-900/20 via-[#0f172a] to-[#0f172a]' : (loginRole === 'ADMIN' ? 'from-blue-900/30 via-[#0f172a] to-[#0f172a]' : 'from-cyan-900/20 via-[#0f172a] to-[#0f172a]')">
     </div>
@@ -13,7 +12,6 @@
          :class="{ 'rotate-y-180': isRegisterMode }">
 
       <!-- ================= 登录面板 (正面) ================= -->
-      <!-- 移除 absolute 的隐式 top/left，强制 inset-0 填满父级 h-[600px] -->
       <div class="absolute inset-0 backface-hidden bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 sm:p-10 border border-gray-700/50 transition-shadow duration-500 flex flex-col justify-center"
            :class="[
              { 'opacity-0 pointer-events-none': isRegisterMode, 'opacity-100 pointer-events-auto': !isRegisterMode },
@@ -37,10 +35,7 @@
         </div>
 
         <div class="flex justify-center mb-4">
-          <div class="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-colors duration-500"
-               :class="loginRole === 'ADMIN' ? 'bg-blue-600 shadow-blue-500/30' : 'bg-cyan-600 shadow-cyan-500/30'">
-            <i class="fas fa-cube text-2xl text-white"></i>
-          </div>
+          <img src="@/assets/logo.png" alt="QuestForge" class="w-16 h-16 rounded-2xl object-cover shadow-lg" />
         </div>
 
         <h2 class="text-3xl font-bold text-center text-white mb-2 tracking-wider">QuestForge</h2>
@@ -91,7 +86,7 @@
               class="w-full flex justify-center py-3 px-4 mt-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 transition-all transform hover:scale-[1.02]"
               :class="loginRole === 'ADMIN' ? 'bg-blue-600 hover:bg-blue-500 focus:ring-blue-500' : 'bg-cyan-600 hover:bg-cyan-500 focus:ring-cyan-500'"
           >
-            <span v-if="loading"><i class="fas fa-spinner fa-spin mr-2"></i>神经链接建立中...</span>
+            <span v-if="loading"><i class="fas fa-spinner fa-spin mr-2"></i>登录中...</span>
             <span v-else>{{ loginRole === 'ADMIN' ? '授权登入管理核心' : '建立探索连接' }}</span>
           </button>
         </form>
@@ -113,11 +108,9 @@
       <div class="absolute inset-0 backface-hidden bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-[0_0_50px_rgba(16,185,129,0.15)] p-8 sm:p-10 border border-gray-700/50 rotate-y-180 flex flex-col justify-center"
            :class="{ 'opacity-100 pointer-events-auto': isRegisterMode, 'opacity-0 pointer-events-none': !isRegisterMode }">
         <div class="flex justify-center mb-4">
-          <div class="w-14 h-14 bg-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/30">
-            <i class="fas fa-user-plus text-2xl text-white"></i>
-          </div>
+          <img src="@/assets/logo.png" alt="QuestForge" class="w-16 h-16 rounded-2xl object-cover shadow-lg" />
         </div>
-        <h2 class="text-2xl font-bold text-center text-white mb-1 tracking-wider">创建新档案</h2>
+        <h2 class="text-2xl font-bold text-center text-white mb-1 tracking-wider">创建新账号</h2>
         <p class="text-center text-green-400/80 mb-6 text-sm">加入 QuestForge，开启你的考核之旅</p>
 
         <form @submit.prevent="handleRegister" class="space-y-4 flex-1">
@@ -237,7 +230,6 @@ const registerForm = reactive({
 })
 
 onMounted(() => {
-  // 核心修复：强制从 localStorage 彻底抹除旧的 EXAM_TOKEN
   localStorage.removeItem('EXAM_TOKEN')
   userStore.clearUserInfo()
 })
@@ -255,7 +247,6 @@ const toggleMode = () => {
 const handleLogin = async () => {
   try {
     loading.value = true
-    // 核心修复 2：剥离前缀，由 request.ts 的 baseURL 自动补全
     const res: any = await request.post('/auth/login', {
       username: loginForm.username,
       password: loginForm.password
@@ -264,7 +255,7 @@ const handleLogin = async () => {
     const { token, role, realName, userId } = res
 
     if (loginRole.value === 'ADMIN' && role !== 'ROLE_ADMIN') {
-      throw new Error('权限不足：当前账号不具备管理核心访问权限')
+      throw new Error('权限不足：当前账号不具备管理访问权限')
     }
 
     userStore.setToken(token)
@@ -295,7 +286,6 @@ const handleRegister = async () => {
 
   try {
     loading.value = true
-    // 核心修复 2：剥离前缀
     await request.post('/auth/register', {
       username: registerForm.username,
       password: registerForm.password,
@@ -303,7 +293,7 @@ const handleRegister = async () => {
       roleCode: registerForm.roleCode
     })
 
-    alert('注册成功！神经档案已建立，请登录。')
+    alert('注册成功！请登录。')
 
     loginRole.value = 'USER'
     loginForm.username = registerForm.username
