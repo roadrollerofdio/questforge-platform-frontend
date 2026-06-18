@@ -27,6 +27,9 @@ const routes: Array<RouteRecordRaw> = [
     { path: '/exam/result/:progressId', name: 'StageResult', component: () => import('@/views/exam/StageResult.vue'), meta: { title: '关卡结算', requiresAuth: true } },
     { path: '/exam/report/:recordId', name: 'ExamReport', component: () => import('@/views/exam/ExamReport.vue'), meta: { title: '考试成绩报告', requiresAuth: true } },
 
+    // ===== 已完成关卡详情页(全屏沉浸式, 不挂布局) =====
+    { path: '/user/stage-detail/:stageId', name: 'StageDetail', component: () => import('@/views/user/StageDetail.vue'), meta: { title: '关卡详情', requiresAuth: true } },
+
     // ===== 管理端 =====
     {
         path: '/admin',

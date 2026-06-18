@@ -151,7 +151,7 @@ const handleStageClick = (stage: any) => {
     return
   }
   if (stage.status === 4) {
-    ElMessage.success(`已通关! 得分 ${stage.currentScore} 分`)
+    router.push(`/user/stage-detail/${stage.stageId}`)
     return
   }
   router.push(`/exam/room/${stage.stageId}`)
