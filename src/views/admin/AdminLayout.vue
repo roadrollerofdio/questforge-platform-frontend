@@ -28,6 +28,9 @@
         <router-link to="/admin/settings" :class="getLinkClass('/admin/settings')">
           <i :class="getIconClass('/admin/settings', 'fa-gear')"></i><span>系统设置</span>
         </router-link>
+        <router-link to="/admin/announcement" :class="getLinkClass('/admin/announcement')">
+          <i :class="getIconClass('/admin/announcement', 'fa-bullhorn')"></i><span>公告管理</span>
+        </router-link>
       </nav>
     </div>
 

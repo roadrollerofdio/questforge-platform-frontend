@@ -15,6 +15,7 @@ const routes: Array<RouteRecordRaw> = [
             { path: 'projects', name: 'ProjectSelect', component: () => import('@/views/user/ProjectSelect.vue'), meta: { title: '选择项目' } },
             { path: 'tasks', name: 'DailyTasks', component: () => import('@/views/user/DailyTasks.vue'), meta: { title: '每日任务' } },
             { path: 'ai-teacher', name: 'AiTeacher', component: () => import('@/views/user/AiTeacher.vue'), meta: { title: 'AI 教师' } },
+            { path: 'messages', name: 'Messages', component: () => import('@/views/user/Messages.vue'), meta: { title: '消息' } },
             { path: 'shop', name: 'Shop', component: () => import('@/views/user/Shop.vue'), meta: { title: '宝石小店' } },
             { path: 'profile', name: 'Profile', component: () => import('@/views/user/Profile.vue'), meta: { title: '个人信息' } }
         ]
@@ -30,6 +31,9 @@ const routes: Array<RouteRecordRaw> = [
     // ===== 已完成关卡详情页(全屏沉浸式, 不挂布局) =====
     { path: '/user/stage-detail/:stageId', name: 'StageDetail', component: () => import('@/views/user/StageDetail.vue'), meta: { title: '关卡详情', requiresAuth: true } },
 
+    // ===== 与好友私聊(全屏沉浸式) =====
+    { path: '/user/chat/:friendId', name: 'Chat', component: () => import('@/views/user/Chat.vue'), meta: { title: '聊天', requiresAuth: true } },
+
     // ===== 管理端 =====
     {
         path: '/admin',
@@ -43,7 +47,8 @@ const routes: Array<RouteRecordRaw> = [
             { path: 'users', component: () => import('@/views/admin/UserManage.vue'), meta: { title: '用户管理' } },
             { path: 'daily-task', component: () => import('@/views/admin/DailyTaskManage.vue'), meta: { title: '每日任务管理' } },
             { path: 'shop', component: () => import('@/views/admin/ShopManage.vue'), meta: { title: '宝石小店管理' } },
-            { path: 'settings', component: () => import('@/views/admin/SystemSettings.vue'), meta: { title: '系统设置' } }
+            { path: 'settings', component: () => import('@/views/admin/SystemSettings.vue'), meta: { title: '系统设置' } },
+            { path: 'announcement', component: () => import('@/views/admin/AnnouncementManage.vue'), meta: { title: '公告管理' } }
         ]
     }
 ]
